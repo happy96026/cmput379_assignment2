@@ -1,0 +1,18 @@
+1. No, you cannot detect the transmission activity by monitoring the size of the fifo
+   since the size always stays zero. The kernel passes all data internally without
+   writing it to the filesystem.
+   
+2. No, two processes cannot communicate when they are running on two different hosts.
+   
+3. Process B also blocks because it blocks until a process opens the FIFO in
+   O_WRONLY mode.
+
+4. Process B can still detect that the FIFO is locked using F_TEST for the function
+   argument since process A has not unlocked the FIFO. The value returned from lockf()
+   was -1 using F_TEST argument.
+
+5. Loop B works properly because before the standard input is read to buf, buf's memory
+   is cleared to 0 while Loop A never clears the memory. Thus, when value is written back
+   to standard output, it will write the same value read because no garbage values are
+   remaining in buf's memory for Loop B. For Loop A, memory is never cleared so we
+   cannot guarantee that the value read and the value written are identical.

@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
+#include "Client.h"
 #include "Constants.h"
 
 using namespace std; 
@@ -15,10 +16,10 @@ extern "C" {
 }
 
 // Global Variable Declaration
-fd_struct      server_fd[NUMFIFO + 1];	// File Descriptor for Server
+FileDesInOut   server_fd[NUMFIFO + 1];	// File Descriptor for Server
 vector<string> server_username; 		// Username that is connected to server
 int    		   server_clients = 0;		// Number of clients connected to server
-fd_struct      client_fd;				// File Descriptor for Client
+FileDesInOut   client_fd;				// File Descriptor for Client
 int    		   client_session = 0;		// Client Session Status
 
 
@@ -84,7 +85,7 @@ void init_fd_set(fd_set *fds) {
 /*
    Returns the value for the nfds argument for select function
 */
-int get_nfds(fd_struct *fd) {
+int get_nfds(FileDesInOut *fd) {
 	int nfds;
 
 	for (int i = 0; i < NUMFIFO + 1; i++) {
@@ -95,100 +96,32 @@ int get_nfds(fd_struct *fd) {
 
 	return nfds + 1;
 }
-//-------------------------------Client Side-------------------------------------
-/*
-   The loop that contains the client side of the program.
-   Returns 1 if loop is repeated, 0 if not.
-*/
-int clientLoop(string fifo) {
-	string buffer_str;
-	vector<string> buffer_v;
-	int size;
-	char buffer[MAX_LENGTH];
-	int  buffer_size = 0;
 
-	cout << "a2chat_client: ";
-	getline(cin, buffer_str);
+void clientMain(string fifo) {
 
-	buffer_v = split_by_space(buffer_str);
+	Client client(fifo);
+	string buffer;
+	vector<string> bufferVector;
 
-	if (buffer_v.size() == 1 && buffer_v[0] ==  "exit") {
-			if (client_session == 1) {
-				write(client_fd.in, buffer_str.c_str(), buffer_str.length() + 2);
-				close(client_fd.in);
-				close(client_fd.out);
-			}
-			return 0;
-	} else if (buffer_v.size() == 1 && buffer_v[0] == "close") {
-		if (client_session = 1) {
-			cout << "Closing current session...\n";
-			write(client_fd.in, buffer_str.c_str(), buffer_str.length() + 2);
-			lockf(client_fd.in, F_ULOCK, MAX_LENGTH);
-			close(client_fd.in);
-			close(client_fd.out);
-			client_session = 0;
+	cout << "Chat client begins\n";
+	while (true) {
+		cout << "a2chat_client: ";
+		getline(cin, buffer);
+
+		bufferVector = split_by_space(buffer);
+
+		if (bufferVector[0] == "exit" && bufferVector.size() == 1) {
+			client.exitClient();
+			break;
+		} else if (bufferVector[0] == "close" && bufferVector.size() == 1) {
+			client.closeClient();
+		} else if (bufferVector[0] == "open" && bufferVector.size() == 2) {
+			client.openClient(buffer);
 		} else {
-			cout << "Session already closed!\n";
+			client.echo(buffer);
 		}
-	} else if (buffer_v.size() == 2 && buffer_v[0] == "open") {
-		string fifo_in, fifo_out;
-
-		for (int i = 1; i < NUMFIFO + 1; i++) {
-			fifo_in  = fifo + "-" + to_string(i) + ".in";
-			fifo_out = fifo + "-" + to_string(i) + ".out";
-
-			client_fd.in = open(fifo_in.c_str(), O_WRONLY | O_NONBLOCK);
-
-			if (lockf(client_fd.in, F_TLOCK, MAX_LENGTH) == 0) {
-
-				// Found an available FIFO
-				client_fd.out = open(fifo_out.c_str(), O_RDONLY | O_NONBLOCK);
-				write(client_fd.in, buffer_str.c_str(), buffer_str.length() + 1);
-				
-				memset(buffer, 0, MAX_LENGTH);
-				while (buffer_size <= 0) {
-					buffer_size = read(client_fd.out, buffer, MAX_LENGTH);
-				}
-				
-				buffer_str = buffer;
-
-				if (buffer_str == "Success") {
-					client_session = 1;
-					cout << "FIFO [fifo-" << i << ".in] has been successfully locked ";
-					cout << "by PID [" << getpid() << "]\n";
-				} else if (buffer_str == "Limit") {
-					WARNING("Reached client limit!\n");
-					close(client_fd.out);
-					return 0;
-				}
-
-				return 1;
-			}
-		}
-		cout << "No FIFO available at the moment" << "\n";
-		return 1;
-	} else if (client_session == 0) {
-		return 1;
-	} else {
-		write(client_fd.in, buffer_str.c_str(), buffer_str.length() + 2);
-		memset(buffer, 0, MAX_LENGTH);
-		while (buffer_size <= 0) {
-			buffer_size = read(client_fd.out, buffer, MAX_LENGTH);
-		}
-		buffer_str = buffer;
-		cout << "[Server]: " << buffer_str << "\n";
 	}
 
-	return 1;
-}
-
-
-/*
-   Handles all the client tasks
-*/
-void client(string fifo) {
-	cout << "Chat client begins\n";
-	while (clientLoop(fifo)) {}
 }
 //-------------------------------Server Side-------------------------------------
 /*
@@ -232,15 +165,15 @@ int serverLoop(int nclient, string fifo) {
 				else { 
 					if (buffer_v.size() == 2 && buffer_v[0] == "open") {
 						string fifo_out;
-
+						
 						fifo_out = fifo + "-" + to_string(ready) + ".out";
 						server_fd[ready].out = open(fifo_out.c_str(), O_WRONLY, O_NONBLOCK);
 
 						if (countNonEmptyString(server_username) >= nclient) {
-							write(server_fd[ready].out, "Limit", 7);
+							write(server_fd[ready].out, "limit", 7);
 							close(server_fd[ready].out);
 						} else {
-							write(server_fd[ready].out, "Success", 9);
+							write(server_fd[ready].out, "success", 9);
 							server_username[ready - 1] = buffer_v[1];
 						}
 					} else {
@@ -339,7 +272,7 @@ int main(int argc, char *argv[]) {
 			} else if (argc < 3) {
 				WARNING("Too little argument(s)\n");
 			} else {
-				client(argv[2]);
+				clientMain(argv[2]);
 			}
 		} else {
 			WARNING("Invalid argument(s)\n");

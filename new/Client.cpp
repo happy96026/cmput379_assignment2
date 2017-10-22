@@ -12,8 +12,8 @@ using namespace std;
 
 
 Client::Client(string fifo) {
-	fd.in = -1;
-	fd.out = 1;
+	fd.in  = -1;
+	fd.out = -1;
 	session = OFF;
 	this->fifo = fifo;
 }
@@ -23,6 +23,7 @@ void Client::exitClient() {
 	cout << "Exiting client..." << endl;
 	if (session == ON) {
 		write(fd.in, "exit", 6);
+		lockf(fd.in, F_ULOCK, MAX_LENGTH);
 		close(fd.in);
 		close(fd.out);
 	}
@@ -34,6 +35,7 @@ void Client::closeClient() {
 		cout << "Closing current session..." << endl;
 		session = OFF;
 		write(fd.in, "close", 7);
+		lockf(fd.in, F_ULOCK, MAX_LENGTH);
 		close(fd.in);
 		close(fd.out);
 	} else {
@@ -47,7 +49,7 @@ void Client::openClient(string buffer) {
 	FileDesInOut fd;
 
 	if (session == OFF) {
-		fifo_index = findFifoIn(); 
+		fifo_index = findAvailableFifoIn(); 
 		if (fifo_index < 0) {
 			WARNING("No available FIFOs found at the moment!\n");
 		} else {
@@ -60,17 +62,15 @@ void Client::openClient(string buffer) {
 			fd.in = open(fifo_in.c_str(), O_WRONLY);
 			fd.out = open(fifo_out.c_str(), O_RDONLY | O_NONBLOCK);
 
-			cout << fifo_in << endl;
-			cout << fd.in << endl;
-
 			writeToFifo(fd.in, buffer);
 			buffer = readFromFifo(fd.out);
 			
 			if (buffer == "success") {
 				session = ON;
+				lockf(fd.in, F_LOCK, MAX_LENGTH);
 				this->fd.in = fd.in;
 				this->fd.out = fd.out;
-				cout << "FIFO [fifo-" << fifo_index << ".in] has been successfully";
+				cout << "FIFO [fifo-" << fifo_index << ".in] has been successfully ";
 				cout << "locked by PID [" << getpid() << "]\n";
 			} else if (buffer == "limit") {
 				WARNING("Reached client limit!\n");
@@ -119,7 +119,7 @@ void Client::writeToFifo(int fd, string buffer) {
 }
 
 
-int Client::findFifoIn() {
+int Client::findAvailableFifoIn() {
 	string fifo_in;
 	int fd_in;
 

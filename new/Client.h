@@ -20,7 +20,7 @@ class Client {
 	private:
 		std::string readFromFifo(int fd);
 		void   		writeToFifo(int fd, std::string buffer);
-		int    		findFifoIn();
+		int    		findAvailableFifoIn();
 
 };
 

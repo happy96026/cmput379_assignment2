@@ -1,6 +1,8 @@
-a2chat: Client.o error_handling.o a2chat.cpp
+a2chat: a2chat.o Client.o Server.o error_handling.o
+	g++ a2chat.o error_handling.o Client.o Server.o -o a2chat
+
+a2chat.o: a2chat.cpp
 	g++ -std=c++11 -c a2chat.cpp -o a2chat.o
-	g++ a2chat.o error_handling.o Client.o -o a2chat
 
 Client.o: Client.cpp
 	g++ -std=c++11 -c Client.cpp -o Client.o

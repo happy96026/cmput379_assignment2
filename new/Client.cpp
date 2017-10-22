@@ -18,6 +18,37 @@ Client::Client(string fifo) {
 	this->fifo = fifo;
 }
 
+int Client::monitorFifos(string &buffer_str) {
+	fd_set fdset;
+	char buffer[MAX_LENGTH];
+	int buffer_size;
+	vector<int> fds;
+
+	fds.push_back(0);
+	if (session == ON) {
+		fds.push_back(fd.out);
+	}
+	
+	while (true) {
+		initFdInSet(&fdset);
+		select(getMaxInVector(fds) + 1, &fdset, NULL, NULL, NULL);
+
+		for (int i = 0; i < fds.size(); i++) {
+			if (FD_ISSET(fds[i], &fdset) > 0) {
+				memset(buffer, 0, MAX_LENGTH);
+				buffer_size = read(fds[i], buffer, MAX_LENGTH);
+				if (buffer_size > 0) {
+					buffer_str = buffer;
+					if (i == 0) {
+						buffer_str = buffer_str.substr(0, buffer_str.length() - 1);
+					}
+					return i;
+				}
+			}
+		}
+	}
+}
+
 
 void Client::exitClient() {
 	cout << "Exiting client..." << endl;
@@ -76,7 +107,11 @@ void Client::openClient(string buffer) {
 				WARNING("Reached client limit!\n");
 				close(fd.in);
 				close(fd.out);
-			} else {
+			} else if (buffer == "user") {
+				WARNING("Username is already taken!\n");
+				close(fd.in);
+				close(fd.out);
+			}else {
 				WARNING("Connection could not have been made\n");
 			}
 		}
@@ -86,14 +121,11 @@ void Client::openClient(string buffer) {
 }
 
 
-void Client::echo(string buffer) {
+void Client::sendToServer(string buffer) {
 	if (session == ON) {
 		writeToFifo(fd.in, buffer);
 		buffer = readFromFifo(fd.out);
-
-		cout << "[Server]: " << buffer << endl;
-	} else {
-		WARNING("Not connected to server!\n");
+		cout << "[server]: " << buffer << endl;
 	}
 }
 
@@ -119,6 +151,11 @@ void Client::writeToFifo(int fd, string buffer) {
 }
 
 
+int Client::getFdIn() {
+	return fd.in;
+}
+
+
 int Client::findAvailableFifoIn() {
 	string fifo_in;
 	int fd_in;
@@ -136,4 +173,24 @@ int Client::findAvailableFifoIn() {
 
 	close(fd_in);
 	return -1;
+}
+
+
+void Client::initFdInSet(fd_set *fdset) {
+	FD_ZERO(fdset);
+	FD_SET(0, fdset);
+	if (session == ON) {
+		FD_SET(fd.out, fdset);
+	}
+}
+
+int Client::getMaxInVector(vector<int> vector) {
+	int max = 0;
+	for (int i = 0; i < vector.size(); i++) {
+		if (vector[i] >= max) {
+			max = vector[i];
+		}
+	}
+
+	return max;
 }

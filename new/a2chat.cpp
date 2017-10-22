@@ -32,23 +32,30 @@ void clientMain(string fifo) {
 	Client client(fifo);
 	string buffer;
 	vector<string> bufferVector;
+	int readyFifo;
 
-	cout << "Chat client begins\n";
+	cout << "Chat client begins" << endl;
 	while (true) {
-		cout << "a2chat_client: ";
-		getline(cin, buffer);
+		cout << "a2chat_client: " << flush;
 
+		readyFifo = client.monitorFifos(buffer);
 		bufferVector = split_by_space(buffer);
 
-		if (bufferVector[0] == "exit" && bufferVector.size() == 1) {
-			client.exitClient();
-			break;
-		} else if (bufferVector[0] == "close" && bufferVector.size() == 1) {
-			client.closeClient();
-		} else if (bufferVector[0] == "open" && bufferVector.size() == 2) {
-			client.openClient(buffer);
+		if (readyFifo == 0) {
+			if (bufferVector[0] == "exit" && bufferVector.size() == 1) {
+				client.exitClient();
+				break;
+			} else if (bufferVector[0] == "close" && bufferVector.size() == 1) {
+				client.closeClient();
+			} else if (bufferVector[0] == "open" && bufferVector.size() == 2) {
+				client.openClient(buffer);
+			} else if (bufferVector[0] == "who" || bufferVector[0] == "to") {
+				client.sendToServer(buffer);
+			} else if (bufferVector[0] == "<") {
+				client.writeToFifo(client.getFdIn(), buffer);
+			}
 		} else {
-			client.echo(buffer);
+			cout << "\n" << buffer << endl;
 		}
 	}
 
@@ -71,22 +78,26 @@ void serverMain(string fifo, int nclient) {
 			if (bufferVector[0] == "exit" && bufferVector.size() == 1) {
 				break;
 			} else {
-				WARNING("Invalid argument(s)\n");
 				cout << "a2chat_server: " << flush;
 			}
 		} else {
 			if (bufferVector[0] == "open" && bufferVector.size() == 2) {
 				if (server.isMaxClient()) {
-					cout << "FLAG0" << endl;
-					server.declineConnection(readyFifo);
+					server.declineConnection(readyFifo, "limit");
+				} else if (server.isUserInServer(bufferVector[1]) >= 0) {
+					server.declineConnection(readyFifo, "user");
 				} else {
-					server.acceptConnection(readyFifo);
+					server.acceptConnection(readyFifo, bufferVector[1]);
 				}
 			} else if ((bufferVector[0] == "exit" || bufferVector[0] == "close") &&
 					(bufferVector.size() == 1)) {
-					server.closeConnection(readyFifo);
-			} else {
-				server.writeToFifo(server.getFifoOutFd(readyFifo), buffer);
+				server.closeConnection(readyFifo);
+			} else if (bufferVector[0] == "who" && bufferVector.size() == 1) {
+				server.writeToFifo(server.getFifoOutFd(readyFifo), server.getUserStr());
+			} else if (bufferVector[0] == "to") {
+				server.addRecipients(readyFifo, bufferVector);
+			} else if (bufferVector[0] == "<") {
+				server.sendToRecipients(readyFifo, buffer);
 			}
 		}
 	}

@@ -13,5 +13,8 @@ Server.o: Server.cpp
 error_handling.o: error_handling.c
 	gcc -c error_handling.c -o error_handling.o
 
+tar:
+	tar -czvf submit.tar ./Makefile ./README.txt ./a2chat.cpp ./Constants.h ./Client.cpp ./Client.h ./Server.cpp ./Server.h ./error_handling.c ./error_handling.h
+
 clean:
 	rm -rf *.o

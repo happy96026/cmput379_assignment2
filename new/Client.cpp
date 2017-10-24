@@ -11,6 +11,11 @@ extern "C" {
 using namespace std;
 
 
+/**
+  Constructor for the Client class.
+
+  @param fifo basename for the fifo
+*/
 Client::Client(string fifo) {
 	fd.in  = -1;
 	fd.out = -1;
@@ -18,6 +23,14 @@ Client::Client(string fifo) {
 	this->fifo = fifo;
 }
 
+
+/**
+   Monitor values from FIFOs. This function blocks until data is received.
+  
+   @param buffer_str stores value read from fifo to the variable
+
+   @return the index of fifo that was read
+*/
 int Client::monitorFifos(string &buffer_str) {
 	fd_set fdset;
 	char buffer[MAX_LENGTH];
@@ -50,6 +63,9 @@ int Client::monitorFifos(string &buffer_str) {
 }
 
 
+/**
+  Exits the program.
+*/
 void Client::exitClient() {
 	cout << "Exiting client..." << endl;
 	if (session == ON) {
@@ -61,6 +77,9 @@ void Client::exitClient() {
 }
 
 
+/**
+  Closes the current session.
+*/
 void Client::closeClient() {
 	if (session == ON) {
 		cout << "Closing current session..." << endl;
@@ -75,6 +94,9 @@ void Client::closeClient() {
 }
 
 
+/**
+  Opens a session for the client.
+*/
 void Client::openClient(string buffer) {
 	int fifo_index;
 	FileDesInOut fd;
@@ -121,15 +143,23 @@ void Client::openClient(string buffer) {
 }
 
 
+/**
+  Send data to server only when session is on.
+*/
 void Client::sendToServer(string buffer) {
 	if (session == ON) {
 		writeToFifo(fd.in, buffer);
-		buffer = readFromFifo(fd.out);
-		cout << "[server]: " << buffer << endl;
 	}
 }
 
 
+/**
+  Reads from fifo. Blocks until data is received.
+
+  @param fd file descriptor for the fifo
+
+  @return the string read from fifo
+*/
 string Client::readFromFifo(int fd) {
 	char buffer[MAX_LENGTH];
 	string buffer_str;
@@ -146,16 +176,29 @@ string Client::readFromFifo(int fd) {
 }
 
 
+/**
+  Writes to fifo.
+*/
 void Client::writeToFifo(int fd, string buffer) {
 	write(fd, buffer.c_str(), buffer.length() + 2);
 }
 
 
+/**
+  Getter for fd.in.
+
+  @return file descriptor for fifo in.
+*/
 int Client::getFdIn() {
 	return fd.in;
 }
 
 
+/**
+  Finds the available fifo starting from fifo-1.in.
+
+  @return the x value for fifo-x.in.
+*/
 int Client::findAvailableFifoIn() {
 	string fifo_in;
 	int fd_in;
@@ -176,6 +219,9 @@ int Client::findAvailableFifoIn() {
 }
 
 
+/**
+  Initializes FdSet for monitor.
+*/
 void Client::initFdInSet(fd_set *fdset) {
 	FD_ZERO(fdset);
 	FD_SET(0, fdset);
@@ -184,6 +230,12 @@ void Client::initFdInSet(fd_set *fdset) {
 	}
 }
 
+
+/**
+  Get maximum integer in vector.
+
+  @return maximum integer
+*/
 int Client::getMaxInVector(vector<int> vector) {
 	int max = 0;
 	for (int i = 0; i < vector.size(); i++) {

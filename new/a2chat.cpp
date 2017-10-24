@@ -11,9 +11,13 @@ extern "C" {
 using namespace std; 
 
 
-/*
+/**
    Splits a string by space and returns the result in a vector.
    Copied from https://www.quora.com/How-do-I-split-a-string-by-space-into-an-array-in-c++
+
+   @param s string to be splitted
+
+   @return a vector that contains the string that have been split by spaces
 */
 vector<string> split_by_space(string s) {
 	vector<string> result;
@@ -26,7 +30,11 @@ vector<string> split_by_space(string s) {
 }
 
 
-//-------------------------------Client Side-------------------------------------
+/**
+  The client side of the program
+
+  @param fifo the basename for fifo
+*/
 void clientMain(string fifo) {
 
 	Client client(fifo);
@@ -49,10 +57,9 @@ void clientMain(string fifo) {
 				client.closeClient();
 			} else if (bufferVector[0] == "open" && bufferVector.size() == 2) {
 				client.openClient(buffer);
-			} else if (bufferVector[0] == "who" || bufferVector[0] == "to") {
+			} else if (bufferVector[0] == "who" || bufferVector[0] == "to" ||
+					bufferVector[0] == "<") {
 				client.sendToServer(buffer);
-			} else if (bufferVector[0] == "<") {
-				client.writeToFifo(client.getFdIn(), buffer);
 			}
 		} else {
 			cout << "\n" << buffer << endl;
@@ -60,7 +67,14 @@ void clientMain(string fifo) {
 	}
 
 }
-//-------------------------------Server Side-------------------------------------
+
+
+/**
+  The server side of the program
+
+  @param fifo the basename for fifo
+  @param nclient the maximum number of client that server can have
+*/
 void serverMain(string fifo, int nclient) {
 	Server server(fifo, nclient);
 	string buffer;
